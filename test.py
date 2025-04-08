@@ -14,15 +14,26 @@ def getSurfaceItem(xSize, ySize, zSize):
     return Item(cube)
 
 def Task():
-    box_size = (30, 30, 30)
+    box_size = (15, 25, 25) # (25, 25, 15) (25, 15, 25) z, x, y
   
     # 空心的，只保留表面，计算速度快
-    items = [getSurfaceItem(10, 9, 12),
+    items = [getSurfaceItem(8, 9, 9),
              getSurfaceItem(7, 6, 10),
              getSurfaceItem(8, 10, 9), 
-             getSurfaceItem(10, 7, 8),
              getSurfaceItem(9, 8, 5),
              getSurfaceItem(8, 5, 4),
+            #  getSurfaceItem(10, 7, 8),
+             getSurfaceItem(7, 4, 4),
+             getSurfaceItem(6, 6, 3),
+             getSurfaceItem(6, 10, 10), # 6, 10, 5
+             getSurfaceItem(9, 7, 6),
+             getSurfaceItem(7, 6, 4),
+             getSurfaceItem(7, 6, 4),
+             getSurfaceItem(9, 6, 4), # 8, 5, 4
+             getSurfaceItem(7, 7, 4),
+             getSurfaceItem(10, 7, 4),
+             getSurfaceItem(5, 5, 4),
+            #  getSurfaceItem(3, 3, 3),
             ]
 
     # 实心的长方体
