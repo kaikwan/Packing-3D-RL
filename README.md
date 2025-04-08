@@ -6,7 +6,14 @@ This is a project for solving bin packing problems, which use methods like heuri
 
 The demo using heuristic searching method has been completed, you can run `test.py` to see how it works. The part of reinforcement learning hasn't been completed and I can't guarantee when can I finish it. (Maybe  never)
 
-### 2. Functions of each file
+### 2. Usage
+```
+conda env create -f environment.yaml
+conda activate packing_3d
+python3 test.py
+```
+
+### 3. Functions of each file
 
 Below are explanations to some files:
 
@@ -25,10 +32,6 @@ Below are explanations to some files:
    <img src="pictures\demo.png" alt="demo" style="zoom:20%;" />
 
 7. `train.py`, `env.py` and `common/`, `DQN/` are used for the reinforcement learning method, but it hasn't complete, so these files and folders remain unused.
-
-### 3. Anaconda environment
-
-I have exported my anaconda environment to the file `environment.yaml`, use `conda env create -f environment.yaml` to copy my environment to your computer.
 
 ### 4. The idea
 
