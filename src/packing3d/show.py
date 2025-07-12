@@ -45,9 +45,11 @@ class Display:
         self.ax.set_ylim([0, self.space_size[2]])
         self.ax.set_zlim([0, self.space_size[0]])
 
-        # z 轴比例过小，导致高度看起来小了
-        # 拉伸 z 坐标轴
-        self.ax.get_proj = lambda: np.dot(Axes3D.get_proj(self.ax), np.diag([1, 1, 1.3, 1]))
+        # Remove the custom projection that stretches z axis
+        # self.ax.get_proj = lambda: np.dot(Axes3D.get_proj(self.ax), np.diag([1, 1, 1.3, 1]))
+        
+        # Set equal aspect ratio for all axes
+        self.ax.set_box_aspect([self.space_size[1], self.space_size[2], self.space_size[0]])
 
         self.ax.set_xlabel('x')
         self.ax.set_ylabel('y')
@@ -86,7 +88,7 @@ class Display:
 
                         self.ax.add_collection3d(Poly3DCollection(verts=voxel, 
                                                     facecolors=self.colors[color_idx]))
-
+        
         plt.draw()
     
     def show2d(self, mat):

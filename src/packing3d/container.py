@@ -3,8 +3,8 @@ from queue import PriorityQueue
 import math
 import time
 
-from utils import *
-from object import *
+from .utils import *
+from .object import *
 
 class Container(object):
 

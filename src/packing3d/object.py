@@ -3,7 +3,7 @@ import math
 from queue import PriorityQueue
 from typing import Sequence
 
-from utils import *
+from .utils import *
 import numpy as np
 
 class Geometry(object):

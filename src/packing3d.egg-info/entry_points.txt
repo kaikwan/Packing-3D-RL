@@ -1,0 +1,2 @@
+[console_scripts]
+packing3d = packing3d.test:main

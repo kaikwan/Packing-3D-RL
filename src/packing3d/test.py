@@ -1,7 +1,7 @@
 import random
 import numpy as np
-from pack import *
-from show import *
+from packing3d.pack import *
+from packing3d.show import *
 import time
 import queue
 
@@ -58,6 +58,10 @@ def Task():
     
     input("Demo 展示完成，按任意键退出")
 
-if __name__ == "__main__":
-
+def main():
+    # Assuming the original code is in a function or can be wrapped in one
+    # Call your existing test code here
     Task()
+
+if __name__ == "__main__":
+    main()

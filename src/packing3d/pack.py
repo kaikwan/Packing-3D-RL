@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import time
 
-from show import Display
-from utils import *
-from object import *
-from container import *
+from .show import Display
+from .utils import *
+from .object import *
+from .container import *
 
 
 class PackingProblem(object):
