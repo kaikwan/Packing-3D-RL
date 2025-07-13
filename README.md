@@ -1,5 +1,5 @@
 # Packing-3D-RL
-Fork of yang-d19/Packing-3D-RL
+Fork of [yang-d19/Packing-3D-RL](https://github.com/yang-d19/Packing-3D-RL)
 
 ### 1. Overview
 
