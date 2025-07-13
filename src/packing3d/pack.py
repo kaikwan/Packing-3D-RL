@@ -12,29 +12,29 @@ from .container import *
 class PackingProblem(object):
 
     def __init__(self, box_size, items):
-        """解决装箱问题的顶层类
+        """Top-level class for solving bin packing problems
 
         Args:
-            box_size (tuple): 箱子的大小，依次为(z, x, y)
-            items (list): 待装箱的物体列表
+            box_size (tuple): Size of the box in (z, x, y) order
+            items (list): List of objects to be packed
         """        
-        # 容器
+        # Container
         self.container = Container(box_size)
-        # 待装箱物体的列表
+        # List of objects to be packed
         self.items = items
-        # 装箱顺序
+        # Packing sequence
         self.sequence = list(range(len(items)))
-        # 各物体的旋转矩阵
+        # Rotation matrices for each object
         self.transforms = list()
-        # 当前装了几个物体
+        # Current number of packed objects
         self.count = 0
     
 
     def load_new_items(self, items):
-        """装载一组新的物体
+        """Load a new set of objects
 
         Args:
-            items (list): 新的一组物体
+            items (list): New set of objects
         """        
         self.items = items
         self.sequence = list(range(len(items)))
@@ -42,29 +42,29 @@ class PackingProblem(object):
 
 
     def pack(self, x, y):
-        """在指定坐标放入当前的物体
+        """Place current object at specified coordinates
 
         Args:
-            x (int): x 坐标
-            y (int): y 坐标
+            x (int): x coordinate
+            y (int): y coordinate
 
         Returns:
-            bool : True表示可以且已经放入，False表示无法放入
+            bool : True indicates successfully placed, False indicates cannot be placed
         """
 
-        # 取得当前要放入箱子中的物体
+        # Get the current object to be placed in the box
         item: Item = self.items[self.sequence[self.count]]
 
-        # 平移到当前位置
+        # Translate to current position
         item.position = Position(x, y, 0)
 
-        # 计算从上往下放物体，物体的坐标
-        # 实际上只更改了 z 坐标的值，xy 坐标不变
-        # 判断能否放入（受到容器体积的制约可能会失败）
+        # Calculate object's coordinates when placing from top to bottom
+        # Actually only changes the z-coordinate value, xy coordinates remain unchanged
+        # Determine if it can be placed (may fail due to container volume constraints)
         result = self.container.add_item_topdown(item, x, y)
 
         if result is True:
-            # 真正把物体放入容器中
+            # Actually place the object in the container
             self.container.add_item(item)
             self.count += 1
             return True
@@ -74,18 +74,18 @@ class PackingProblem(object):
     
     def autopack_oneitem(self, item_idx):
 
-        # print("itme index: ", item_idx)
+        # print("item index: ", item_idx)
         # t1 = time.time()
         curr_item: Item = self.items[item_idx]
         transforms = self.container.search_possible_position(curr_item)
         # t2 = time.time()
         # print("search possible positions: ", t2 - t1)
 
-        # 如果找不到可以放置的位置
-        assert len(transforms) > 0, "未找到可以放置的位置和角度"
+        # If no placement position can be found
+        assert len(transforms) > 0, "Could not find a position and orientation for placement"
         
-        # 暂时不考虑放置物体后物体堆的稳定性
-        # 直接按照排名第一的变换矩阵放置物体
+        # Temporarily ignore stability of object stack after placement
+        # Directly place the object according to the first-ranked transformation matrix
         curr_item.transform(transforms[0])
 
         # t3 = time.time()
@@ -102,4 +102,4 @@ class PackingProblem(object):
 
 
 if __name__ == "__main__": 
-    pass 
+    pass

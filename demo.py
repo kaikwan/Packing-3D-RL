@@ -8,7 +8,7 @@ import queue
 def getSurfaceItem(xSize, ySize, zSize):
 
     cube = np.ones((xSize, ySize, zSize))
-    # 将内部全部置为0，只保留表面
+    # Set all interior to 0, only keep the surface
     cube[1: xSize-1, 1: ySize-1, 1: zSize-1] = 0
 
     return Item(cube)
@@ -16,7 +16,7 @@ def getSurfaceItem(xSize, ySize, zSize):
 def Task():
     box_size = (15, 25, 25) # (25, 25, 15) (25, 15, 25) z, x, y
   
-    # 空心的，只保留表面，计算速度快
+    # Hollow, only keep surface, faster calculation
     items = [getSurfaceItem(8, 9, 9),
              getSurfaceItem(7, 6, 10),
              getSurfaceItem(8, 10, 9), 
@@ -36,7 +36,7 @@ def Task():
             #  getSurfaceItem(3, 3, 3),
             ]
 
-    # 实心的长方体
+    # Solid cuboids
     # items = [Item(np.ones((5, 13, 15))),
     #         Item(np.ones((18, 6, 12))),
     #         Item(np.ones((10, 10, 9))), 
@@ -56,7 +56,7 @@ def Task():
         # time.sleep(0.5)
         plt.pause(0.5)
     
-    input("Demo 展示完成，按任意键退出")
+    input("Demo complete, press Enter key to exit")
 
 def main():
     # Assuming the original code is in a function or can be wrapped in one

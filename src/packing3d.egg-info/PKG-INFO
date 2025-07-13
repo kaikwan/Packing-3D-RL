@@ -25,13 +25,11 @@ Dynamic: summary
 
 # Packing-3D-RL
 Fork of yang-d19/Packing-3D-RL
-### 1. Introduction to the project
+### 1. Overview
 
-This is a project for solving bin packing problems, which use methods like heuristic searching and reinforcement learning. 
+This is a pip package that provides an implementation to ***Stable bin packing of non-convex 3D objects with a robot manipulator, Fan Wang and Kris Hauser.***  *(arXiv:1812.04093v1 [cs.RO] 10 Dec 2018)*. In PRL, this is used with GCULab to measure fullness.
 
-The demo using heuristic searching method has been completed, you can run `test.py` to see how it works. The part of reinforcement learning hasn't been completed and I can't guarantee when can I finish it. (Maybe  never)
-
-### 2. Usage
+### 2. Installation
 ```
 conda env create -f environment.yaml
 conda activate packing_3d

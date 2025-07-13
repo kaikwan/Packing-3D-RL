@@ -9,34 +9,34 @@ from .object import *
 class Container(object):
 
     def __init__(self, box_size):
-        """提供放置物体操作的容器类
+        """Container class providing operations for placing objects
 
         Args:
-            box_size (tuple): 箱子的大小 (z, x, y)
+            box_size (tuple): Size of the box (z, x, y)
         """        
         self.boxSize = box_size
-        # 创建空的几何体
+        # Create empty geometry
         self.geometry = Geometry(np.zeros(tuple(box_size)))
-        # 计算高度表
+        # Calculate heightmap
         self.heightmap = self.geometry.heightmap_topdown()
-        # 当前是放进来的第几个物体（为了用不同的颜色区分）
+        # Current number of objects placed (for distinguishing with different colors)
         self.number = 0
 
 
-    # 清空容器
+    # Clear the container
     def clear(self):
         self.geometry = Geometry(np.zeros(tuple(self.boxSize)))
         self.heightmap = self.geometry.heightmap_topdown()
         self.number = 0
 
     
-    # 由给定的启发函数计算对应的分数
-    def hueristic_score(self, item: Item, centroid, method):
-        # 启发函数计算时使用到的小常数
+    # Calculate score based on given heuristic function
+    def heuristic_score(self, item: Item, centroid, method):
+        # Small constant used in heuristic function calculations
         c = 0.5
-        # item.position 只是物体框架的最靠近原点的坐标
-        # 还要计算物体质心相对于物体原点的坐标
-        # 然后两者相加，得到物体在容器中的实际质心
+        # item.position is just the coordinate closest to the origin of the object frame
+        # Need to calculate the position of object's centroid relative to the object's origin
+        # Then add them together to get the actual centroid of the object in the container
         true_centroid = item.position + centroid
         x = true_centroid.x
         y = true_centroid.y
@@ -46,14 +46,14 @@ class Container(object):
             return z + c * (x + y)
 
         elif method == "HM":
-            # 拷贝一份旧的高度图
+            # Copy the old heightmap
             new_heightmap = deepcopy(self.heightmap)
-            # 计算添加该物体后的容器的高度图
+            # Calculate the heightmap of the container after adding the object
             for i in range(item.curr_geometry.x_size):
                 for j in range(item.curr_geometry.y_size):
                     if item.heightmap_topdown[i][j] > 0:
                         new_heightmap[x + i][y + j] = z + item.heightmap_topdown[i][j]
-            # 由高度图计算启发函数定义的分数
+            # Calculate score defined by heuristic function based on heightmap
             score = c * (x + y)
             for i in range(self.geometry.x_size):
                 for j in range(self.geometry.y_size):
@@ -66,47 +66,47 @@ class Container(object):
 
     def add_item(self, item: Item):
         self.number += 1
-        # 计算新的点云模型
+        # Calculate new point cloud model
         self.geometry.add(item.curr_geometry, item.position, self.number)
-        # 重新计算高度图
+        # Recalculate heightmap
         self.heightmap = self.geometry.heightmap_topdown()
 
 
     def add_item_topdown(self, item: Item, x, y):
-        """从上往下放置物体
+        """Place object from top to bottom
 
         Args:
-            item (Item): 当前要放入的物体
-            x (int): 放入的x坐标
-            y (int): 放入的y坐标
+            item (Item): Current object to be placed
+            x (int): x-coordinate for placement
+            y (int): y-coordinate for placement
 
         Returns:
-            bool: True表示能够放入容器中，False表示不能
+            bool: True indicates can be placed in the container, False indicates cannot
         """        
 
         assert type(x) == int and type(y) == int \
-            and x >= 0 and y >= 0, "x, y 必须为正整数"
+            and x >= 0 and y >= 0, "x, y must be positive integers"
 
-        # 如果物体在平面维度不能放入容器中
+        # If the object cannot fit into the container in the plane dimension
         if x + item.curr_geometry.x_size > self.geometry.x_size \
             or y + item.curr_geometry.y_size > self.geometry.y_size:
             return False
 
-        # 计算在这个位置放置该物体的上表面的 z 坐标
+        # Calculate the z-coordinate of the upper surface of the object at this position
         item_upper_z = 0
         for i in range(item.curr_geometry.x_size):
             for j in range(item.curr_geometry.y_size):
                 item_upper_z = max(item_upper_z, 
                                 self.heightmap[x + i][y + j] + item.heightmap_bottomup[i][j])
 
-        # 如果上表面超出了容器的上界
+        # If the upper surface exceeds the upper bound of the container
         if item_upper_z > self.geometry.z_size:
             return False
 
-        # 物体的 z 坐标（特指物体所在三维体的原点的 z 坐标）
+        # Object's z-coordinate (specifically the z-coordinate of the origin of the 3D body containing the object)
         z = round(item_upper_z - item.curr_geometry.z_size)
 
-        # 确定物体的坐标（引用传递，直接作用到传入的参数上）
+        # Set the object's coordinates (pass by reference, directly affects the parameter passed in)
         item.position = Position(x, y, z)
 
         return True
@@ -114,12 +114,12 @@ class Container(object):
 
     def search_possible_position(self, item: Item, grid_num=10, step_width=45):
         
-        # 存放所有可能的变换矩阵，
+        # Store all possible transformation matrices
         # stable_transforms_score = PriorityQueue(TransformScore(score=10000))
         stable_transforms_score = PriorityQueue()
 
-        # 将容器划分为 grid_num * grid_num 个网格
-        # 对于每个网格，尝试放下物体
+        # Divide the container into grid_num * grid_num grids
+        # Try to place the object for each grid
         grid_coords = []
         for i in range(grid_num):
             for j in range(grid_num):
@@ -129,9 +129,9 @@ class Container(object):
 
         t1 = time.time()
 
-        # step_width 为遍历 roll, pitch, yaw 的步长
-        # 预处理：提前找到一些比较稳定的 roll, pitch
-        # yaw 不影响物体放在平面上的稳定性
+        # step_width is the step size for traversing roll, pitch, yaw
+        # Preprocessing: Find some relatively stable roll, pitch in advance
+        # yaw does not affect the stability of the object on the plane
         stable_attitudes = item.planar_stable_attitude(step_width)
 
         t2 = time.time()
@@ -141,20 +141,20 @@ class Container(object):
         #     print(att)
 
         attCnt = 0
-        # 遍历比较稳定的姿态（不包括 yaw）
+        # Traverse relatively stable attitudes (excluding yaw)
         for part_attitude in stable_attitudes:
 
             t3 = time.time()
 
-            # 对每一组 roll, pitch 遍历 yaw
+            # For each roll, pitch combination, traverse yaw
             for yaw in range(0, 360, step_width):
-                # 生成完整的姿态（包括 yaw）
+                # Generate complete attitude (including yaw)
                 curr_attitude = Attitude(part_attitude.roll, part_attitude.pitch, yaw)
-                # 生成旋转后的物体
+                # Generate rotated object
                 item.rotate(curr_attitude)
-                # 获取该物体自顶向下和自底向上的高度图
+                # Get the top-down and bottom-up heightmaps of the object
                 item.calc_heightmap()
-                # 计算当前物体的质心
+                # Calculate the current object's centroid
                 centroid = item.curr_geometry.centroid()
 
                 # --------- DEBUG BEGIN -----------
@@ -164,22 +164,22 @@ class Container(object):
                 # input()
                 # ---------- DEBUG END ------------
 
-                # 遍历网格交点
+                # Traverse grid intersection points
                 for [x, y] in grid_coords:
 
-                    # 尝试在 (x, y) 位置放置物体
+                    # Try to place the object at position (x, y)
                     if self.add_item_topdown(item, x, y):
-                        # 如果当前位置能放入容器中
-                        # 计算当前位置的分数
-                        score = self.hueristic_score(item, centroid, "DBLF")
+                        # If current position can fit in the container
+                        # Calculate score for current position
+                        score = self.heuristic_score(item, centroid, "DBLF")
 
                         curr_position = item.position
                         curr_transform = Transform(curr_position, curr_attitude)
-                        # 组合起来，为排序做准备
+                        # Combine for sorting preparation
                         tf_score = TransformScore(curr_transform, score)
                         stable_transforms_score.put(tf_score)
 
-                    # 否则直接跳过
+                    # Otherwise skip
                     else:
                         continue
 
@@ -187,8 +187,8 @@ class Container(object):
             print("try number {} yaw in this attitude: {}".format(attCnt, t4 - t3))
             attCnt += 1
 
-        # 去掉 score ，只保留 transform
-        # 取前10个
+        # Remove score, only keep transform
+        # Take top 10
         stable_transforms = []
         cnt = 0
         while not stable_transforms_score.empty() and cnt < 10:
@@ -198,5 +198,5 @@ class Container(object):
             stable_transforms.append(transform_score.transform)
         
         return stable_transforms
-    
+
 

@@ -3,12 +3,10 @@ pyproject.toml
 setup.py
 src/packing3d/__init__.py
 src/packing3d/container.py
-src/packing3d/env.py
 src/packing3d/object.py
 src/packing3d/pack.py
 src/packing3d/show.py
 src/packing3d/test.py
-src/packing3d/train.py
 src/packing3d/utils.py
 src/packing3d.egg-info/PKG-INFO
 src/packing3d.egg-info/SOURCES.txt
@@ -16,12 +14,3 @@ src/packing3d.egg-info/dependency_links.txt
 src/packing3d.egg-info/entry_points.txt
 src/packing3d.egg-info/requires.txt
 src/packing3d.egg-info/top_level.txt
-src/packing3d/DQN/__init__.py
-src/packing3d/DQN/agent.py
-src/packing3d/DQN/task0_train.py
-src/packing3d/common/__init__.py
-src/packing3d/common/memory.py
-src/packing3d/common/model.py
-src/packing3d/common/multiprocessing_env.py
-src/packing3d/common/plot.py
-src/packing3d/common/utils.py

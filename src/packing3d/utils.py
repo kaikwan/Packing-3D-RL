@@ -3,24 +3,6 @@ import queue
 from copy import deepcopy
 import math
 
-# 使用排序数组实现的优先队列
-# class PriorityQueue(object):
-
-#     def __init__(self, node):
-#         self._queue = sortedcontainers.SortedList([node])
-
-#     def push(self, node):
-#         self._queue.add(node)
-#         # # 控制优先队列的长度
-#         # if len(self._queue) > self.max_len:
-#         #     self._queue.pop(index=len(self._queue)-1)
-
-#     def pop(self):
-#         return self._queue.pop(index=0)
-
-#     def empty(self):
-#         return len(self._queue) == 0
-
 def dist(x1, y1, z1, x2, y2, z2):
     return math.sqrt((x1-x2) * (x1-x2) + (y1-y2) * (y1-y2) + (z1-z2) * (z1-z2))
 

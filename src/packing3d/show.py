@@ -7,26 +7,26 @@ from mpl_toolkits.mplot3d import Axes3D
 class Display:
     
     def __init__(self, space_size=(10, 10, 10)):
-        """可视化展现容器的状态
+        """Visualize the state of the container
 
         Args:
-            space_size (tuple, optional): 容器的大小 (z, x, y). Defaults to (10, 10, 10).
+            space_size (tuple, optional): Size of the container (z, x, y). Defaults to (10, 10, 10).
         """        
 
-        plt.ion() #开启interactive mode 成功的关键函数
-        # 设置三维视图显示
+        plt.ion() #Enable interactive mode - key function for success
+        # Set up 3D view display
         self.fig = plt.figure() 
              
         self.space_size = space_size
         
-        # 每个物体使用不同的颜色
+        # Use different colors for each object
         self.colors = ['lightcoral', 'lightsalmon', 'gold', 'olive',
             'mediumaquamarine', 'deepskyblue', 'blueviolet', 'pink',
             'brown', 'darkorange', 'yellow', 'lawngreen', 'turquoise',
-            'dodgerblue', 'darkorchid', 'hotpink', 'firepink', 'peru',
-            'orange', 'darksage', 'cyan', 'purple', 'crimson']
+            'dodgerblue', 'darkorchid', 'hotpink', 'deeppink', 'peru',
+            'orange', 'darkolivegreen', 'cyan', 'purple', 'crimson']
 
-        # 基础的小立方体
+        # Basic small cube
         self.origin_voxel = [[[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0]],
                              [[0, 0, 0], [0, 0, 1], [1, 0, 1], [1, 0, 0]],
                              [[1, 0, 1], [1, 0, 0], [1, 1, 0], [1, 1, 1]],
@@ -71,9 +71,9 @@ class Display:
     
     def show3d(self, geom):
 
-        # 清空画布上的所有内容
+        # Clear all content on the canvas
         plt.clf() 
-        # 重新设置画布上的图像信息
+        # Reset the image information on the canvas
         self.set_ax3d()
 
         for x in range(geom.x_size):
@@ -87,7 +87,7 @@ class Display:
                         voxel = self.one_voxel(pos)
 
                         self.ax.add_collection3d(Poly3DCollection(verts=voxel, 
-                                                    facecolors=self.colors[color_idx]))
+                                                    facecolors=self.colors[color_idx % len(self.colors)],))
         
         plt.draw()
     
