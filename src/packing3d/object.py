@@ -158,7 +158,7 @@ class Geometry(object):
         # newPointMat has both positive and negative values at this point
         newPointMat = T_rotate * self.pointsMat
 
-        distThsld = 0.84          # 0.8661
+        distThsld = 0.8661
 
         for idx in range(newPointMat.shape[1]):
             
@@ -178,6 +178,8 @@ class Geometry(object):
                         # Add integer points with distance less than threshold to new_points
                         if ptDist < distThsld:
                             new_points.append(np.asmatrix([px, py, pz]).T)
+        if not new_points:
+            raise ValueError("No points generated after rotation. Check distThsld, input geometry, or rotation matrix.")
 
         min_x = min_y = min_z = math.ceil(radius)
         max_x = max_y = max_z = 0
