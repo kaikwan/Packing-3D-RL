@@ -1,8 +1,7 @@
-import math
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import to_rgba
+
 
 class Display:
     
@@ -64,33 +63,41 @@ class Display:
         self.ax.set_xlabel('x')
         self.ax.set_ylabel('y')
 
-
-    def one_voxel(self, offset):
-        new_voxel = self.origin_voxel + np.array(offset)
-        return new_voxel
-    
     def show3d(self, geom):
-
-        # Clear all content on the canvas
-        plt.clf() 
-        # Reset the image information on the canvas
-        self.set_ax3d()
-
-        for x in range(geom.x_size):
-            for y in range(geom.y_size):
-                for z in range(geom.z_size):
-                    if geom.cube[z][x][y] > 0:
-
-                        color_idx = math.floor(geom.cube[z][x][y])
-                        
-                        pos = (x, y, z)
-                        voxel = self.one_voxel(pos)
-
-                        self.ax.add_collection3d(Poly3DCollection(verts=voxel, 
-                                                    facecolors=self.colors[color_idx % len(self.colors)],))
+        """
+        Fast voxel rendering with Matplotlib’s ax.voxels (correct orientation).
+        """
+        plt.clf()
         
+        self.set_ax3d()                        # (re)creates self.ax
+
+        cube   = geom.cube                     # original shape: (z, x, y)
+        active = cube > 0
+        if not np.any(active):                 # nothing to draw
+            plt.draw()
+            return
+
+        # ---------- colour table (pre‑computed RGBA) ----------
+        color_rgba = np.asarray([to_rgba(c) for c in self.colors])   # shape (C, 4)
+
+        idx_flat   = (cube[active].astype(int) % len(color_rgba))    # (N,)
+        rgba_flat  = color_rgba[idx_flat]                            # (N, 4)
+
+        rgba_full = np.zeros((*cube.shape, 4))
+        rgba_full[active] = rgba_flat
+
+        # ---------- correct axis order: (z, x, y) --> (x, y, z) ----------
+        active_xyz = np.transpose(active,  (1, 2, 0))          # bool  (x, y, z)
+        colors_xyz = np.transpose(rgba_full, (1, 2, 0, 3))     # RGBA (x, y, z, 4)
+
+        # ---------- draw ----------
+        self.ax.voxels(
+            active_xyz,
+            facecolors=colors_xyz,
+            edgecolor=None          # set 'k' or similar if you want grid lines
+        )
         plt.draw()
-    
+
     def show2d(self, mat):
 
         plt.clf()
