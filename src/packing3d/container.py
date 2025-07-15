@@ -14,7 +14,7 @@ class Container(object):
         Args:
             box_size (tuple): Size of the box (z, x, y)
         """        
-        self.boxSize = box_size
+        self.box_size = box_size
         # Create empty geometry
         self.geometry = Geometry(np.zeros(tuple(box_size)))
         # Calculate heightmap
@@ -25,7 +25,7 @@ class Container(object):
 
     # Clear the container
     def clear(self):
-        self.geometry = Geometry(np.zeros(tuple(self.boxSize)))
+        self.geometry = Geometry(np.zeros(tuple(self.box_size)))
         self.heightmap = self.geometry.heightmap_topdown()
         self.number = 0
 
@@ -48,11 +48,16 @@ class Container(object):
         elif method == "HM":
             # Copy the old heightmap
             new_heightmap = deepcopy(self.heightmap)
+
+            # Convert to integers for indexing
+            x_index = item.position.x
+            y_index = item.position.y
+
             # Calculate the heightmap of the container after adding the object
             for i in range(item.curr_geometry.x_size):
                 for j in range(item.curr_geometry.y_size):
                     if item.heightmap_topdown[i][j] > 0:
-                        new_heightmap[x + i][y + j] = z + item.heightmap_topdown[i][j]
+                        new_heightmap[x_index + i][y_index + j] = z + item.heightmap_topdown[i][j]
             # Calculate score defined by heuristic function based on heightmap
             score = c * (x + y)
             for i in range(self.geometry.x_size):

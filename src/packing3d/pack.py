@@ -18,6 +18,7 @@ class PackingProblem(object):
             box_size (tuple): Size of the box in (z, x, y) order
             items (list): List of objects to be packed
         """        
+        self.box_size = box_size
         # Container
         self.container = Container(box_size)
         # List of objects to be packed
