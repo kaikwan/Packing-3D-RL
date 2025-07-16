@@ -5,6 +5,7 @@ import time
 
 from .utils import *
 from .object import *
+from . import stability_checker
 
 class Container(object):
 
@@ -21,6 +22,8 @@ class Container(object):
         self.heightmap = self.geometry.heightmap_topdown()
         # Current number of objects placed (for distinguishing with different colors)
         self.number = 0
+        # Track all placed items for stability checking
+        self.placed_items = []
 
 
     # Clear the container
@@ -28,6 +31,7 @@ class Container(object):
         self.geometry = Geometry(np.zeros(tuple(self.box_size)))
         self.heightmap = self.geometry.heightmap_topdown()
         self.number = 0
+        self.placed_items = []
 
     
     # Calculate score based on given heuristic function
@@ -75,6 +79,8 @@ class Container(object):
         self.geometry.add(item.curr_geometry, item.position, self.number)
         # Recalculate heightmap
         self.heightmap = self.geometry.heightmap_topdown()
+        # Add to placed items list
+        self.placed_items.append(deepcopy(item))
 
 
     def add_item_topdown(self, item: Item, x, y):
@@ -203,5 +209,14 @@ class Container(object):
             stable_transforms.append(transform_score.transform)
         
         return stable_transforms
+
+    def get_placed_items(self):
+        return self.placed_items
+
+    def check_stability_with_candidate(self, candidate_item, mass=1.0, mu=0.5):
+        """Check stability of the current placed items plus a candidate item using the stability checker."""
+        # Use the new stability_checker API directly
+        items = self.placed_items + [candidate_item]
+        return stability_checker.check_stability(items, mass=mass, mu=mu, plot=True, container_size=self.box_size)
 
 

@@ -17,7 +17,8 @@ def Task():
     box_size = (15, 25, 25) # (25, 25, 15) (25, 15, 25) z, x, y
   
     # Hollow, only keep surface, faster calculation
-    items = [getSurfaceItem(8, 9, 9),
+    items = [
+        getSurfaceItem(8, 9, 9),
              getSurfaceItem(7, 6, 10),
              getSurfaceItem(8, 10, 9), 
              getSurfaceItem(9, 8, 5),
@@ -54,7 +55,8 @@ def Task():
         problem.autopack_oneitem(idx)   
         display.show3d(problem.container.geometry)
         # time.sleep(0.5)
-        plt.pause(0.5)
+        # Save the figure after drawing, not before/after plt.clf()
+        display.fig.savefig('container.png')
     
     input("Demo complete, press Enter key to exit")
 

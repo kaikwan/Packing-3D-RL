@@ -6,7 +6,6 @@ src/packing3d/container.py
 src/packing3d/object.py
 src/packing3d/pack.py
 src/packing3d/show.py
-src/packing3d/test.py
 src/packing3d/utils.py
 src/packing3d.egg-info/PKG-INFO
 src/packing3d.egg-info/SOURCES.txt

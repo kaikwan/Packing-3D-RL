@@ -2,6 +2,7 @@ from typing import Sequence
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+from copy import deepcopy
 
 from .show import Display
 from .utils import *
@@ -85,12 +86,20 @@ class PackingProblem(object):
         # If no placement position can be found
         assert len(transforms) > 0, "Could not find a position and orientation for placement"
         
-        # Temporarily ignore stability of object stack after placement
-        # Directly place the object according to the first-ranked transformation matrix
-        curr_item.transform(transforms[0])
-
-        # t3 = time.time()
-        # print("rotate to a position: ", t3 - t2)
+        # Filter transforms by stability
+        stable_transform = None
+        for tf in transforms:
+            # Apply transform to a copy of the item
+            test_item = deepcopy(curr_item)
+            test_item.transform(tf)
+            if self.container.check_stability_with_candidate(test_item):
+                stable_transform = tf
+                break
+        if stable_transform is None:
+            # No stable transform found
+            return None
+        # Place the object according to the first stable transformation
+        curr_item.transform(stable_transform)
         self.container.add_item(curr_item)
 
         # t4 = time.time()

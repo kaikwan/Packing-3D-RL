@@ -97,6 +97,8 @@ class Display:
             edgecolor=None          # set 'k' or similar if you want grid lines
         )
         plt.draw()
+        plt.savefig('container.png')
+
 
     def show2d(self, mat):
 

@@ -20,7 +20,6 @@ setup(
     install_requires=[
         "numpy",
         "matplotlib",
-        "open3d",
     ],
     entry_points={
         "console_scripts": [
