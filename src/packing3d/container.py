@@ -2,10 +2,18 @@ from copy import deepcopy
 from queue import PriorityQueue
 import math
 import time
+from functools import lru_cache
 
 from .utils import *
 from .object import *
 from . import stability_checker
+
+def items_state_key(items):
+
+    return tuple(
+        (item.__class__.__name__, item.curr_geometry.x_size, item.curr_geometry.y_size, item.curr_geometry.z_size)
+        for item in items
+    )
 
 class Container(object):
 
@@ -24,6 +32,8 @@ class Container(object):
         self.number = 0
         # Track all placed items for stability checking
         self.placed_items = []
+        # Cache contact generations
+        self._stability_cache = {}
 
 
     # Clear the container
@@ -214,9 +224,20 @@ class Container(object):
         return self.placed_items
 
     def check_stability_with_candidate(self, candidate_item, mass=1.0, mu=0.5):
-        """Check stability of the current placed items plus a candidate item using the stability checker."""
-        # Use the new stability_checker API directly
         items = self.placed_items + [candidate_item]
-        return stability_checker.check_stability(items, mass=mass, mu=mu, plot=True, container_size=self.box_size)
+        key_full = items_state_key(items)
+        key_placed = items_state_key(self.placed_items)
+        cached_contacts = self._stability_cache.get(key_placed, None)
+        result = stability_checker.check_stability(
+            items, mass=mass, mu=mu, plot=False, verbose=True, container_size=self.box_size, cached_contacts=cached_contacts
+        )
+        # Cache contacts for both this full configuration and the placed items after every check
+        if hasattr(result, 'contacts'):
+            self._stability_cache[key_full] = result.contacts
+            self._stability_cache[key_placed] = result.contacts
+        elif isinstance(result, dict) and 'contacts' in result:
+            self._stability_cache[key_full] = result['contacts']
+            self._stability_cache[key_placed] = result['contacts']
+        return result
 
 

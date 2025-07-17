@@ -63,7 +63,7 @@ def _generate_contacts(items: List[Item], grid: float = 0.01, mu: float = 0.5):
     # Ground contacts (z = 0)
     for idx, item in enumerate(items):
         voxels = _item_world_voxels(item)
-        below = voxels[:, 2] < 1e-6
+        below = voxels[:, 2] < 0.05
         if np.any(below):
             pts = voxels[below]
             for p in pts:
@@ -88,79 +88,130 @@ def _pyramid_dirs(n):
     ang = np.linspace(0, 2 * np.pi, n, endpoint=False)
     return np.c_[np.cos(ang), np.sin(ang)]
 
-def check_stability(items: List[Item], grid: float = 0.01, pyramid_facets: int = 1, g: Vec3 = (0, 0, -9.81), mu: float = 0.5, mass: float = 1.0, verbose: bool = True, plot: bool = True, container_size: Tuple[int, int, int] = None) -> bool:
-    contacts = _generate_contacts(items, grid=grid, mu=mu)
-    contacts = _cluster_contacts(contacts, grid)
+def check_stability(items: List[Item], grid: float = 0.015, pyramid_facets: int = 4, g: Vec3 = (0, 0, -9.81), mu: float = 0.5, mass: float = 1.0, verbose: bool = False, plot: bool = True, container_size: Tuple[int, int, int] = None, cached_contacts=None) -> bool:
+    # If cached_contacts is provided, use them for the placed items
+    if cached_contacts is not None:
+        # Assume last item is the candidate
+        candidate = items[-1]
+        # Compute only candidate's contacts
+        candidate_contacts = _generate_contacts([candidate], grid=grid, mu=mu)
+        candidate_contacts = _cluster_contacts(candidate_contacts, grid)
+        # Adjust indices for candidate contacts (A/B indices)
+        for ct in candidate_contacts:
+            if ct['A'] >= 0:
+                ct['A'] += len(items) - 1  # candidate index
+            if ct['B'] >= 0:
+                ct['B'] += len(items) - 1
+        contacts = list(cached_contacts) + candidate_contacts
+    else:
+        contacts = _generate_contacts(items, grid=grid, mu=mu)
+        contacts = _cluster_contacts(contacts, grid)
     K = len(contacts)
     if K == 0:
         return False
-    F = cp.Variable((K, 3))
-    constraints = []
-    circle = _pyramid_dirs(pyramid_facets)
-    # Friction pyramid constraints
-    for k, ct in enumerate(contacts):
-        n = ct['n']
-        mu_val = ct['mu']
-        f_n = F[k] @ n
-        f_t = F[k] - f_n * n
-        constraints.append(f_n >= 0)
-        t1 = _normalize(np.cross(n, [0, 0, 1]) if abs(n[2]) < 0.9 else np.cross(n, [0, 1, 0]))
-        t2 = np.cross(n, t1)
-        R = np.vstack([t1, t2])
-        for d in circle:
-            dir3 = R.T @ d
-            constraints.append(f_t @ dir3 <= mu_val * f_n)
-            constraints.append(-f_t @ dir3 <= mu_val * f_n)
-    g_vec = np.asarray(g)
-    for idx, item in enumerate(items):
-        gravity_force = mass * g_vec
-        sum_f = np.array([gravity_force[0], gravity_force[1], gravity_force[2]])
-        sum_tau = np.array([0.0, 0.0, 0.0])
-        has_contacts = False
-        com = _item_com(item)
-        for k, ct in enumerate(contacts):
-            if ct['B'] == idx:
-                fk = F[k]
-                r = ct['c'] - com
-                has_contacts = True
-            elif ct['A'] == idx:
-                fk = -F[k]
-                r = ct['c'] - com
-                has_contacts = True
-            else:
-                continue
-            sum_f = sum_f + fk
-            sum_tau = sum_tau + np.array([
-                r[1]*fk[2] - r[2]*fk[1],
-                r[2]*fk[0] - r[0]*fk[2],
-                r[0]*fk[1] - r[1]*fk[0]
-            ])
-        if not has_contacts:
-            return False
-        constraints += [sum_f[i] == 0 for i in range(3)]
-        constraints += [sum_tau[i] == 0 for i in range(3)]
-    prob = cp.Problem(cp.Minimize(0), constraints)
-    prob.solve(solver=cp.SCS, verbose=True)
+    # Precompute contact arrays
+    N = np.array([ct['n'] for ct in contacts])     # (K, 3)
+    C = np.array([ct['c'] for ct in contacts])     # (K, 3)
+    mu_vals = np.array([ct['mu'] for ct in contacts])  # (K,)
+    A_idx = np.array([ct['A'] for ct in contacts])     # (K,)
+    B_idx = np.array([ct['B'] for ct in contacts])     # (K,)
 
+    F = cp.Variable((K, 3))  # Contact forces, shape (K, 3)
+
+    constraints = []
+    # Normal force constraints
+    f_n = cp.sum(cp.multiply(F, N), axis=1)  # (K,)
+    constraints.append(f_n >= 0)
+
+    # Friction pyramid constraints
+    up_vecs = []
+    for n in N:
+        if abs(n[2]) < 0.9:
+            up_vecs.append([0, 0, 1])
+        else:
+            up_vecs.append([0, 1, 0])
+    up_vecs = np.array(up_vecs)  # (K, 3)
+    
+    t1s = np.cross(N, up_vecs)
+    t1s = np.apply_along_axis(_normalize, 1, t1s)
+    t2s = np.cross(N, t1s)
+    R = np.stack([t1s, t2s], axis=-1)  # (K, 3, 2)
+    dirs = _pyramid_dirs(pyramid_facets)  # (pyramid_facets, 2)
+    dir3 = np.einsum('kij,pj->kpi', R, dirs)  # (K, pyramid_facets, 3)
+    f_t = F - cp.multiply(f_n[:, None], N)  # (K, 3)
+    # Friction cone dot products
+    # We'll use cp.matmul for batch dot products
+    # f_dot[k, p] = f_t[k] @ dir3[k, p]
+    f_dot = cp.hstack([cp.sum(cp.multiply(f_t, dir3[:, p, :]), axis=1, keepdims=True) for p in range(pyramid_facets)])  # (K, pyramid_facets)
+    mu_f_n = cp.multiply(mu_vals[:, None], f_n[:, None])  # (K, 1)
+    constraints.append(f_dot <= mu_f_n)
+    constraints.append(-f_dot <= mu_f_n)
+
+    # Equilibrium constraints (per item)
+    for i, item in enumerate(items):
+        com = _item_com(item)
+        g_force = mass * np.array(g)
+        # Find contact indices where A or B == i
+        b_mask = (B_idx == i)
+        a_mask = (A_idx == i)
+        sign = np.where(b_mask, 1, np.where(a_mask, -1, 0))  # +1 for B, -1 for A
+        idxs = np.where(sign != 0)[0]
+        if len(idxs) == 0:
+            continue  # TODO (kaikwan): dive deeper, No contacts for this item, skip
+        signs = sign[idxs][:, None]  # (n_i, 1)
+        rel_pos = C[idxs] - com  # (n_i, 3)
+        F_i = cp.multiply(F[idxs], signs)    # (n_i, 3)
+        # Force equilibrium
+        constraints.append(cp.sum(F_i, axis=0) + g_force == 0)
+        # Torque equilibrium: sum over r × f
+        r = rel_pos
+        f = F_i
+        r_cross_f = cp.hstack([
+            cp.multiply(r[:, 1], f[:, 2]) - cp.multiply(r[:, 2], f[:, 1]),
+            cp.multiply(r[:, 2], f[:, 0]) - cp.multiply(r[:, 0], f[:, 2]),
+            cp.multiply(r[:, 0], f[:, 1]) - cp.multiply(r[:, 1], f[:, 0])
+        ])
+        constraints.append(cp.sum(r_cross_f, axis=0) == 0)
+    print("Solving stability problem with {} contacts...".format(K))
+    prob = cp.Problem(cp.Minimize(0), constraints)
+    prob.solve(solver=cp.HIGHS, verbose=verbose) # , max_iter=1000)
     stable = prob.status == cp.OPTIMAL
     forces = F.value if stable else None
     if plot:
         plot_scene(items, contacts, forces, stable, container_size=container_size)
-    return stable
+
+    # Optionally, return more info for caching
+    class ResultObj:
+        def __init__(self, stable, contacts):
+            self.stable = stable
+            self.contacts = contacts
+        def __bool__(self):
+            return self.stable
+    return ResultObj(stable, contacts)
 
 def plot_scene(items: List[Item], contacts, forces_dict, stable, force_scale: float = 0.01, figsize: Tuple[float, float] = (12, 8), container_size: Tuple[int, int, int] = None):
     plt.clf()
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(111, projection='3d')
+
     # Determine container size (in meters)
+    if container_size is None:
+        all_voxels = np.vstack([_item_world_voxels(item) for item in items]) if items else np.zeros((1, 3))
+        x_max = all_voxels[:, 0].max() if items else 0.2
+        y_max = all_voxels[:, 1].max() if items else 0.2
+        z_max = all_voxels[:, 2].max() if items else 0.2
+        container_size = (int(np.ceil(z_max * 100)), int(np.ceil(x_max * 100)), int(np.ceil(y_max * 100)))
     container_z, container_x, container_y = container_size
+
+    # Colors
     colors = [
         'lightcoral', 'lightsalmon', 'gold', 'olive', 'mediumaquamarine', 'deepskyblue', 'blueviolet', 'pink',
         'brown', 'darkorange', 'yellow', 'lawngreen', 'turquoise', 'dodgerblue', 'darkorchid', 'hotpink',
         'deeppink', 'peru', 'orange', 'darkolivegreen', 'cyan', 'purple', 'crimson'
     ]
     color_rgba_table = np.asarray([plt.matplotlib.colors.to_rgba(c) for c in colors])
-    # Build a single voxel and color array for the whole container
+
+    # Build voxel and color arrays
     voxels = np.zeros((container_z, container_x, container_y), dtype=bool)
     facecolors = np.zeros((container_z, container_x, container_y, 4), dtype=float)
     for i, item in enumerate(items):
@@ -172,24 +223,24 @@ def plot_scene(items: List[Item], contacts, forces_dict, stable, force_scale: fl
         wx = (x_idx + item.position.x)
         wy = (y_idx + item.position.y)
         wz = (z_idx + item.position.z)
-        # Clamp indices to container size
         wx = np.clip(wx, 0, container_x - 1)
         wy = np.clip(wy, 0, container_y - 1)
         wz = np.clip(wz, 0, container_z - 1)
         voxels[wz, wx, wy] = True
         facecolors[wz, wx, wy] = color_rgba_table[i % len(color_rgba_table)]
-    # Debug: print number of set voxels and their coordinates
-    num_voxels = np.sum(voxels)
-    # Transpose to (x, y, z) for ax.voxels
+
+    # Plot voxels
     ax.voxels(
         np.transpose(voxels, (1, 2, 0)),
         facecolors=np.transpose(facecolors, (1, 2, 0, 3)),
         edgecolor=None, alpha=0.3
     )
-    # Plot center of mass for each item
-    for item in items:
-        com = _item_com(item) * 100  # Convert from meters to voxel units
-        ax.scatter(com[0], com[1], com[2], c='red', marker='x', s=200, alpha=0.8)
+
+    # Plot all centers of mass in one call
+    if items:
+        coms = np.array([_item_com(item) * 100 for item in items])
+        ax.scatter(coms[:, 0], coms[:, 1], coms[:, 2], c='red', marker='x', s=200, alpha=0.8)
+
     # Plot ground plane
     xx, yy = np.meshgrid(
         np.arange(0, container_x),
@@ -198,33 +249,35 @@ def plot_scene(items: List[Item], contacts, forces_dict, stable, force_scale: fl
     )
     zz = np.zeros_like(xx)
     ax.plot_surface(xx, yy, zz, alpha=0.2, color='gray')
-    # Plot contacts
+
+    # Plot all contacts in one call
     if contacts:
-        contact_points = np.array([ct['c'] for ct in contacts]) * 100  # Convert to voxel units
+        contact_points = np.array([ct['c'] for ct in contacts]) * 100
         ax.scatter(contact_points[:, 0], contact_points[:, 1], contact_points[:, 2],
-                   c='orange', marker='o', s=200, alpha=0.8,
+                   c='orange', marker='o', s=60, alpha=0.8,
                    label='Contacts', edgecolors='black')
-        # Plot contact normals
-        for ct in contacts:
-            c = ct['c'] * 100  # Convert to voxel units
-            n = ct['n'] * 3   # Make the normal arrow shorter for visibility (3 voxels)
-            ax.quiver(c[0], c[1], c[2], n[0], n[1], n[2],
-                      color='blue', alpha=0.7, arrow_length_ratio=0.3)
-    # Plot force vectors
+
+        # Vectorized contact normals (blue arrows)
+        normals = np.array([ct['n'] for ct in contacts]) * 3
+        ax.quiver(
+            contact_points[:, 0], contact_points[:, 1], contact_points[:, 2],
+            normals[:, 0], normals[:, 1], normals[:, 2],
+            color='blue', alpha=0.7, arrow_length_ratio=0.3
+        )
+
+    # Vectorized force vectors (red arrows)
     if stable and forces_dict is not None and contacts:
-        for k, force in enumerate(forces_dict):
-            if k < len(contacts):
-                ct = contacts[k]
-                c = ct['c'] * 100  # Convert to voxel units
-                f = force * (force_scale * 100)  # Scale force to voxel units
-                ax.quiver(c[0], c[1], c[2], f[0], f[1], f[2],
-                          color='red', alpha=0.8, arrow_length_ratio=0.1,
-                          linewidth=2)
+        forces = np.array(forces_dict) * (force_scale * 100)
+        ax.quiver(
+            contact_points[:, 0], contact_points[:, 1], contact_points[:, 2],
+            forces[:, 0], forces[:, 1], forces[:, 2],
+            color='red', alpha=0.8, arrow_length_ratio=0.1, linewidth=2
+        )
+
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')
     ax.set_title('Scene Visualization')
-    # Set aspect ratio and limits
     ax.set_xlim(0, container_x)
     ax.set_ylim(0, container_y)
     ax.set_zlim(0, container_z)
@@ -232,4 +285,4 @@ def plot_scene(items: List[Item], contacts, forces_dict, stable, force_scale: fl
     ax.view_init(50, 45)
     plt.tight_layout()
     plt.savefig('scene.png')
-    return fig, ax 
+    return fig, ax
