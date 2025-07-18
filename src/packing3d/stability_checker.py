@@ -4,7 +4,7 @@ from scipy.spatial import cKDTree
 from itertools import combinations
 from typing import List, Tuple, Dict, Optional
 import matplotlib.pyplot as plt
-import time
+import gc
 
 from .object import Item
 
@@ -179,15 +179,15 @@ def check_stability(items: List[Item], grid: float = 0.015, pyramid_facets: int 
     forces = F.value if stable else None
     if plot:
         plot_scene(items, contacts, forces, stable, container_size=container_size)
-
-    # Optionally, return more info for caching
-    class ResultObj:
-        def __init__(self, stable, contacts):
-            self.stable = stable
-            self.contacts = contacts
-        def __bool__(self):
-            return self.stable
-    return ResultObj(stable, contacts)
+    del prob, F
+    del N, C, mu_vals, A_idx, B_idx
+    del f_n, f_t, f_dot, mu_f_n
+    del constraints
+    del dir3, dirs, R, t1s, t2s, up_vecs
+    del contacts
+    gc.collect()
+    return stable
+    
 
 def plot_scene(items: List[Item], contacts, forces_dict, stable, force_scale: float = 0.01, figsize: Tuple[float, float] = (12, 8), container_size: Tuple[int, int, int] = None):
     plt.clf()
